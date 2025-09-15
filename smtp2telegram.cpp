@@ -1,3 +1,10 @@
+// smtp2telegram.cpp
+// Copyright (c) 2024 William Bellavance Jr. 
+// SPDX-License-Identifier: MIT
+//
+// This file is part of smtp-2-telegram.
+// See LICENSE file in the project root for full license information.
+
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
