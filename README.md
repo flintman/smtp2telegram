@@ -7,21 +7,37 @@ SMTP-2-Telegram is a lightweight C++ service that listens for incoming emails vi
 - Receives emails via SMTP
 - Forwards email subject and body to Telegram chat
 - Configurable via environment variables
+- Installs as a systemd service via .deb package
+- Automatically creates `.env` file if not present
+- Stores all files (binary, config, logs) in `/smtp2telegram/`
 - Lightweight and easy to deploy
 
 ## Requirements
 
 - C++17 compatible compiler
-- Make (for building)
+- Make (for building, if not using .deb)
 - Telegram Bot Token
 - Telegram Chat ID
 
 ## Installation
 
+### Using .deb Package
+
+1. Download and install the .deb package:
+    ```bash
+    sudo dpkg -i smtp2telegram.deb
+    ```
+
+2. The service, configuration, and logs will be placed in `/smtp2telegram/`.
+
+3. The systemd service will be enabled and started automatically.
+
+### Manual Build
+
 1. Clone the repository:
     ```bash
     git clone https://github.com/flintman/smtp2telegram.git
-    cd smtp-2-telegram
+    cd smtp2telegram
     ```
 
 2. Build the project:
@@ -29,9 +45,16 @@ SMTP-2-Telegram is a lightweight C++ service that listens for incoming emails vi
     make
     ```
 
+3. Build the project deb:
+    ```bash
+    make deb
+    ```
+
 ## Configuration
 
-Set the following environment variables before running the service:
+On first run, the service will create a `.env` file in `/smtp2telegram/` if it does not exist.
+
+Set the following environment variables in `/smtp2telegram/.env`:
 
 | Variable              | Description                                      |
 |-----------------------|--------------------------------------------------|
@@ -40,22 +63,29 @@ Set the following environment variables before running the service:
 | `SMTP_HOSTNAME`       | Host/IP to listen for SMTP (default: `0.0.0.0`)  |
 | `SMTP_PORT`           | Port to listen for SMTP (default: `1025`)        |
 
-Example `.env` file:
+Example `/smtp2telegram/.env` file:
 ```env
-TELEGRAM_BOT_TOKEN=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
-TELEGRAM_CHAT_ID=-1001234567890
-SMTP_LISTEN_HOST=0.0.0.0
-SMTP_LISTEN_PORT=1025
+API_KEY=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
+CHAT_ID=-1001234567890
+SMTP_HOSTNAME=0.0.0.0
+SMTP_PORT=1025
 ```
 
 ## Usage
 
-Start the service:
+First Run(*** TO CREATE THE .env FILE follow directions***):
 ```bash
-./smtp2telegram
+smtp2telegram
+```
+
+Start the service (if not already running and have .env file):
+```bash
+sudo systemctl start smtp2telegram
 ```
 
 Send an email to the configured SMTP server. The service will forward the email's subject and body to the specified Telegram chat.
+
+Logs are saved to `/smtp2telegram/smtp2telegram.log`.
 
 ## License
 

@@ -16,7 +16,7 @@
 #include <iomanip>
 
 void log(const std::string& msg) {
-    std::ofstream log_file("smtp_server.log", std::ios_base::app);
+    std::ofstream log_file(std::string(std::getenv("HOME")) + "/smtp2telegram/smtp_server.log", std::ios_base::app);
     std::time_t now = std::time(nullptr);
     std::ostringstream oss;
     oss << std::put_time(std::localtime(&now), "%Y-%m-%d %H:%M:%S");
@@ -141,7 +141,37 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
 }
 
 int main() {
-    std::ifstream env_file(".env");
+    std::string env_path = std::string(std::getenv("HOME")) + "/smtp2telegram/.env";
+    std::ifstream env_file(env_path);
+    if (!env_file) {
+        std::cout << ".env file not found. Please provide the following information:\n";
+        std::string chat_id, api_key, smtp_hostname, smtp_port;
+
+        std::cout << "CHAT_ID (Telegram chat ID): ";
+        std::getline(std::cin, chat_id);
+
+        std::cout << "API_KEY (Telegram bot API key): ";
+        std::getline(std::cin, api_key);
+
+        std::cout << "SMTP_HOSTNAME (SMTP server hostname, e.g., 127.0.0.1): ";
+        std::getline(std::cin, smtp_hostname);
+
+        std::cout << "SMTP_PORT (SMTP server port, e.g., 2525): ";
+        std::getline(std::cin, smtp_port);
+
+        std::ofstream new_env(env_path);
+        if (new_env) {
+            new_env << "CHAT_ID=" << chat_id << "\n";
+            new_env << "API_KEY=" << api_key << "\n";
+            new_env << "SMTP_HOSTNAME=" << smtp_hostname << "\n";
+            new_env << "SMTP_PORT=" << smtp_port << "\n";
+            std::cout << ".env file created at " << env_path << "\n";
+        } else {
+            std::cerr << "Failed to create .env file at " << env_path << "\n";
+            return 1;
+        }
+        env_file.open(env_path);
+    }
     if (env_file) {
         std::string line;
         while (std::getline(env_file, line)) {
