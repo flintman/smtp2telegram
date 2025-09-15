@@ -5,6 +5,7 @@
 // This file is part of smtp-2-telegram.
 // See LICENSE file in the project root for full license information.
 
+#include "../includes/smtp2telegram.h"
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
@@ -14,7 +15,6 @@
 #include <curl/curl.h>
 #include <iomanip>
 
-// Logging utility
 void log(const std::string& msg) {
     std::ofstream log_file("smtp_server.log", std::ios_base::app);
     std::time_t now = std::time(nullptr);
@@ -25,7 +25,6 @@ void log(const std::string& msg) {
     std::cout << timestamp << " - " << msg << std::endl;
 }
 
-// Send message to Telegram
 bool send_telegram_message(const std::string& api_key, const std::string& chat_id, const std::string& message) {
     CURL* curl = curl_easy_init();
     if (!curl) return false;
@@ -43,7 +42,6 @@ bool send_telegram_message(const std::string& api_key, const std::string& chat_i
     return (res == CURLE_OK);
 }
 
-// Minimal SMTP handler (stub, not RFC-compliant)
 void smtp_server(const std::string& hostname, int port, const std::string& api_key, const std::string& chat_id) {
     using boost::asio::ip::tcp;
     boost::asio::io_context io_context;
@@ -56,13 +54,11 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
         tcp::socket socket(io_context);
         acceptor.accept(socket);
 
-        // Log incoming connection details
         boost::asio::ip::tcp::endpoint remote_ep = socket.remote_endpoint();
         std::ostringstream conn_msg;
         conn_msg << "Connection from " << remote_ep.address().to_string() << ":" << remote_ep.port();
         log(conn_msg.str());
 
-        // Send SMTP greeting to client
         std::string greeting = "220 smtp2telegram ESMTP Service Ready\r\n";
         boost::asio::write(socket, boost::asio::buffer(greeting));
 
@@ -73,7 +69,6 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
         tv.tv_usec = 0;
         setsockopt(socket.native_handle(), SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
-        // Minimal SMTP state machine
         auto send_response = [&](const std::string& resp) {
             boost::asio::write(socket, boost::asio::buffer(resp));
         };
@@ -81,7 +76,7 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
         std::string subject, content;
         bool got_data = false;
         while (!got_data) {
-            buf.consume(buf.size()); // Clear buffer
+            buf.consume(buf.size());
             boost::asio::read_until(socket, buf, "\r\n", ec);
             if (ec) break;
             std::istream is(&buf);
@@ -89,12 +84,9 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
             std::getline(is, cmd);
             if (!cmd.empty() && cmd.back() == '\r') cmd.pop_back();
             log("SMTP command: " + cmd);
-
-            // Log all received SMTP commands
             log("Received SMTP command: " + cmd);
 
             if (cmd.find("EHLO") == 0) {
-                // Respond with standard SMTP extensions
                 send_response("250-smtp2telegram greets you\r\n");
                 send_response("250-PIPELINING\r\n");
                 send_response("250-SIZE 35882577\r\n");
@@ -110,7 +102,6 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
                 send_response("250 OK\r\n");
             } else if (cmd == "DATA") {
                 send_response("354 End data with <CR><LF>.<CR><LF>\r\n");
-                // Read message data until \r\n.\r\n
                 boost::asio::streambuf data_buf;
                 boost::asio::read_until(socket, data_buf, "\r\n.\r\n", ec);
                 if (ec) {
@@ -136,7 +127,6 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
             }
         }
 
-        // Clean up content
         size_t pos;
         while ((pos = content.find("=0A")) != std::string::npos)
             content.replace(pos, 3, "\n");
@@ -151,8 +141,6 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
 }
 
 int main() {
-    // Read config from environment
-    // Load environment variables from .env file if present
     std::ifstream env_file(".env");
     if (env_file) {
         std::string line;
