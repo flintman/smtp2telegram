@@ -34,7 +34,7 @@ bool send_telegram_message(const std::string& api_key, const std::string& chat_i
                       "&text=" + curl_easy_escape(curl, message.c_str(), message.length());
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // Disable SSL verification (not recommended for production)
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
 
