@@ -153,7 +153,7 @@ int main() {
         std::cout << "API_KEY (Telegram bot API key): ";
         std::getline(std::cin, api_key);
 
-        std::cout << "SMTP_HOSTNAME (SMTP server hostname, e.g., 127.0.0.1): ";
+        std::cout << "SMTP_HOSTNAME (SMTP server hostname, e.g., 0.0.0.0): ";
         std::getline(std::cin, smtp_hostname);
 
         std::cout << "SMTP_PORT (SMTP server port, e.g., 2525): ";
