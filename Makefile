@@ -60,5 +60,6 @@ install-service:
 	echo "[Service]" >> $(DEBDIR)/lib/systemd/system/$(TARGET).service
 	echo "ExecStart=/usr/bin/$(TARGET)" >> $(DEBDIR)/lib/systemd/system/$(TARGET).service
 	echo "Restart=always" >> $(DEBDIR)/lib/systemd/system/$(TARGET).service
+	echo "User=$$(if [ -n "$$SUDO_USER" ]; then echo $$SUDO_USER; else echo $$USER; fi)" >> $(DEBDIR)/lib/systemd/system/$(TARGET).service
 	echo "[Install]" >> $(DEBDIR)/lib/systemd/system/$(TARGET).service
 	echo "WantedBy=multi-user.target" >> $(DEBDIR)/lib/systemd/system/$(TARGET).service
