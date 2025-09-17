@@ -141,7 +141,18 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
 }
 
 int main() {
-    std::string env_path = std::string(std::getenv("HOME")) + "/smtp2telegram/.env";
+    std::string home = std::getenv("HOME");
+    std::string env_dir = home + "/smtp2telegram";
+    std::string env_path = env_dir + "/.env";
+
+    struct stat st = {0};
+    if (stat(env_dir.c_str(), &st) == -1) {
+        if (mkdir(env_dir.c_str(), 0700) == -1) {
+            std::cerr << "Failed to create directory " << env_dir << ": " << strerror(errno) << "\n";
+            return 1;
+        }
+    }
+
     std::ifstream env_file(env_path);
     if (!env_file) {
         std::cout << ".env file not found. Please provide the following information:\n";
