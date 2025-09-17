@@ -34,15 +34,15 @@ SMTP-2-Telegram is a lightweight C++ service that listens for incoming emails vi
 
 ### Manual Build
 
-1. Clone the repository:
+1. Required dependencies:
+    ```bash
+    sudo apt install g++ libboost-all-dev libcurl4-openssl-dev
+    ```
+
+2. Clone the repository:
     ```bash
     git clone https://github.com/flintman/smtp2telegram.git
     cd smtp2telegram
-    ```
-
-2. Build the project:
-    ```bash
-    make
     ```
 
 3. Build the project deb:
