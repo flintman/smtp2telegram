@@ -1,5 +1,5 @@
 // smtp2telegram.cpp
-// Copyright (c) 2024 William Bellavance Jr. 
+// Copyright (c) 2024 William Bellavance Jr.
 // SPDX-License-Identifier: MIT
 //
 // This file is part of smtp-2-telegram.
@@ -29,9 +29,17 @@ bool send_telegram_message(const std::string& api_key, const std::string& chat_i
     CURL* curl = curl_easy_init();
     if (!curl) return false;
 
+    char* escaped_message = curl_easy_escape(curl, message.c_str(), message.length());
+    if (!escaped_message) {
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
     std::string url = "https://api.telegram.org/bot" + api_key +
                       "/sendMessage?chat_id=" + chat_id +
-                      "&text=" + curl_easy_escape(curl, message.c_str(), message.length());
+                      "&text=" + escaped_message;
+
+    curl_free(escaped_message);  // Free the escaped string to prevent memory leak
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
