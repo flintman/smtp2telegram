@@ -63,6 +63,7 @@ Set the following environment variables in `~/smtp2telegram/.env` manually if yo
 | `CHAT_ID`             | Chat ID to send messages to                      |
 | `SMTP_HOSTNAME`       | Host/IP to listen for SMTP (default: `0.0.0.0`)  |
 | `SMTP_PORT`           | Port to listen for SMTP (default: `1025`)        |
+| `LOG_KEEP_DAYS`       | Days to keep logs (default: `3`)                 |
 
 Example `~/smtp2telegram/.env` file:
 ```env
@@ -70,6 +71,7 @@ API_KEY=123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
 CHAT_ID=-1001234567890
 SMTP_HOSTNAME=0.0.0.0
 SMTP_PORT=1025
+LOG_KEEP_DAYS=3
 ```
 
 ## Usage

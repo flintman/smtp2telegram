@@ -39,6 +39,7 @@ deb: all install-service
 	echo "systemctl daemon-reload" >> $(DEBDIR)/DEBIAN/postinst
 	echo "systemctl enable $(TARGET).service" >> $(DEBDIR)/DEBIAN/postinst
 	chmod +x $(DEBDIR)/DEBIAN/postinst
+	echo 'echo "[smtp2telegram] NOTE: If you have a .env file in your home directory, make sure it contains LOG_KEEP_DAYS=3 (or your preferred value) for log retention."' >> $(DEBDIR)/DEBIAN/postinst
 
 	# Pre-removal script
 	echo "#!/bin/bash" > $(DEBDIR)/DEBIAN/prerm
@@ -51,7 +52,7 @@ deb: all install-service
 	 cp LICENSE $(DEBDIR)/usr/share/doc/$(TARGET)/
 
 	 dpkg-deb --build $(DEBDIR) $(TARGET)_$(VERSION)_$(ARCH).deb
-	
+
 install-service:
 	mkdir -p $(DEBDIR)/lib/systemd/system
 	echo "[Unit]" > $(DEBDIR)/lib/systemd/system/$(TARGET).service

@@ -14,18 +14,44 @@
 #include <boost/asio.hpp>
 #include <curl/curl.h>
 #include <iomanip>
+#include <sstream>
+#include <vector>
+#include <chrono>
 
-void log(const std::string& msg) {
-    std::ofstream log_file(std::string(std::getenv("HOME")) + "/smtp2telegram/smtp_server.log", std::ios_base::app);
+void log(const std::string& msg, int keep_days) {
+    std::string log_path = std::string(std::getenv("HOME")) + "/smtp2telegram/smtp_server.log";
+    std::vector<std::string> lines;
+    std::ifstream log_file_in(log_path);
     std::time_t now = std::time(nullptr);
+
+    const std::time_t cutoff = now - keep_days * 24 * 60 * 60;
+    std::string line;
+    // Read and filter old log lines
+    while (std::getline(log_file_in, line)) {
+        if (line.size() < 19) continue; // skip malformed
+        std::tm tm = {};
+        std::istringstream iss(line.substr(0, 19));
+        iss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+        std::time_t log_time = std::mktime(&tm);
+        if (!iss.fail() && log_time >= cutoff) {
+            lines.push_back(line);
+        }
+    }
+    log_file_in.close();
+    // Prepare new log entry
     std::ostringstream oss;
     oss << std::put_time(std::localtime(&now), "%Y-%m-%d %H:%M:%S");
     std::string timestamp = oss.str();
-    log_file << timestamp << " - " << msg << std::endl;
-    std::cout << timestamp << " - " << msg << std::endl;
+    std::string new_entry = timestamp + " - " + msg;
+    lines.push_back(new_entry);
+    // Write filtered log + new entry
+    std::ofstream log_file_out(log_path, std::ios_base::trunc);
+    for (const auto& l : lines) log_file_out << l << std::endl;
+    log_file_out.close();
+    std::cout << new_entry << std::endl;
 }
 
-bool send_telegram_message(const std::string& api_key, const std::string& chat_id, const std::string& message) {
+bool send_telegram_message(const std::string& api_key, const std::string& chat_id, const std::string& message, int log_keep_days) {
     CURL* curl = curl_easy_init();
     if (!curl) return false;
 
@@ -46,18 +72,18 @@ bool send_telegram_message(const std::string& api_key, const std::string& chat_i
     CURLcode res = curl_easy_perform(curl);
     curl_easy_cleanup(curl);
 
-    log("Telegram message sent: " + message);
+    log("Telegram message sent: " + message, log_keep_days);
     return (res == CURLE_OK);
 }
 
-void smtp_server(const std::string& hostname, int port, const std::string& api_key, const std::string& chat_id) {
+void smtp_server(const std::string& hostname, int port, const std::string& api_key, const std::string& chat_id, int log_keep_days) {
     using boost::asio::ip::tcp;
     boost::asio::io_context io_context;
     tcp::acceptor acceptor(io_context, tcp::endpoint(boost::asio::ip::make_address(hostname), port));
 
     std::ostringstream listen_msg;
     listen_msg << "Starting SMTP server on " << hostname << ":" << port;
-    log(listen_msg.str());
+    log(listen_msg.str(), log_keep_days);
     while (true) {
         tcp::socket socket(io_context);
         acceptor.accept(socket);
@@ -65,7 +91,7 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
         boost::asio::ip::tcp::endpoint remote_ep = socket.remote_endpoint();
         std::ostringstream conn_msg;
         conn_msg << "Connection from " << remote_ep.address().to_string() << ":" << remote_ep.port();
-        log(conn_msg.str());
+        log(conn_msg.str(), log_keep_days);
 
         std::string greeting = "220 smtp2telegram ESMTP Service Ready\r\n";
         boost::asio::write(socket, boost::asio::buffer(greeting));
@@ -91,8 +117,8 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
             std::string cmd;
             std::getline(is, cmd);
             if (!cmd.empty() && cmd.back() == '\r') cmd.pop_back();
-            log("SMTP command: " + cmd);
-            log("Received SMTP command: " + cmd);
+            log("SMTP command: " + cmd, log_keep_days);
+            log("Received SMTP command: " + cmd, log_keep_days);
 
             if (cmd.find("EHLO") == 0) {
                 send_response("250-smtp2telegram greets you\r\n");
@@ -113,7 +139,7 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
                 boost::asio::streambuf data_buf;
                 boost::asio::read_until(socket, data_buf, "\r\n.\r\n", ec);
                 if (ec) {
-                    log(std::string("Error reading SMTP DATA: ") + ec.message());
+                    log(std::string("Error reading SMTP DATA: ") + ec.message(), log_keep_days);
                     send_response("451 Requested action aborted: local error in processing\r\n");
                     break;
                 }
@@ -141,8 +167,8 @@ void smtp_server(const std::string& hostname, int port, const std::string& api_k
 
         if (!subject.empty() || !content.empty()) {
             std::string msg = subject + "\n" + content;
-            send_telegram_message(api_key, chat_id, msg);
-            log("Email processed: Subject: " + subject + ", Content: " + content);
+            send_telegram_message(api_key, chat_id, msg, log_keep_days);
+            log("Email processed: Subject: " + subject + ", Content: " + content, log_keep_days);
             send_response("250 OK\r\n");
         }
     }
@@ -164,7 +190,7 @@ int main() {
     std::ifstream env_file(env_path);
     if (!env_file) {
         std::cout << ".env file not found. Please provide the following information:\n";
-        std::string chat_id, api_key, smtp_hostname, smtp_port;
+        std::string chat_id, api_key, smtp_hostname, smtp_port, log_keep_days;
 
         std::cout << "CHAT_ID (Telegram chat ID): ";
         std::getline(std::cin, chat_id);
@@ -178,12 +204,16 @@ int main() {
         std::cout << "SMTP_PORT (SMTP server port, e.g., 2525): ";
         std::getline(std::cin, smtp_port);
 
+        std::cout << "LOG_KEEP_DAYS (Days to keep logs, default 3): ";
+        std::getline(std::cin, log_keep_days);
+
         std::ofstream new_env(env_path);
         if (new_env) {
             new_env << "CHAT_ID=" << chat_id << "\n";
             new_env << "API_KEY=" << api_key << "\n";
             new_env << "SMTP_HOSTNAME=" << smtp_hostname << "\n";
             new_env << "SMTP_PORT=" << smtp_port << "\n";
+            new_env << "LOG_KEEP_DAYS=" << log_keep_days << "\n";
             std::cout << ".env file created at " << env_path << "\n";
         } else {
             std::cerr << "Failed to create .env file at " << env_path << "\n";
@@ -207,18 +237,20 @@ int main() {
     const char* api_key = std::getenv("API_KEY");
     const char* hostname = std::getenv("SMTP_HOSTNAME");
     const char* port_str = std::getenv("SMTP_PORT");
+    const char* log_keep_days_str = std::getenv("LOG_KEEP_DAYS");
 
-    if (!chat_id || !api_key || !hostname || !port_str) {
-        std::cerr << "Missing environment variables. Set CHAT_ID, API_KEY, SMTP_HOSTNAME, SMTP_PORT." << std::endl;
+    if (!chat_id || !api_key || !hostname || !port_str || !log_keep_days_str) {
+        std::cerr << "Missing environment variables. Set CHAT_ID, API_KEY, SMTP_HOSTNAME, SMTP_PORT, LOG_KEEP_DAYS." << std::endl;
         return 1;
     }
 
     int port = std::stoi(port_str);
+    int log_keep_days = std::stoi(log_keep_days_str);
 
     try {
-        smtp_server(hostname, port, api_key, chat_id);
+        smtp_server(hostname, port, api_key, chat_id, log_keep_days);
     } catch (const std::exception& e) {
-        log(std::string("Error: ") + e.what());
+        log(std::string("Error: ") + e.what(), log_keep_days);
         std::cerr << "Server error: " << e.what() << std::endl;
         return 1;
     }
