@@ -6,16 +6,38 @@ SMTP-2-Telegram is a lightweight C++ service that listens for incoming emails vi
 
 - Receives emails via SMTP
 - Forwards email subject and body to Telegram chat
+- **Modern object-oriented C++17 architecture**
+- **Thread-safe logging with automatic rotation**
+- **Retry logic for reliable message delivery**
+- **Proper MIME and quoted-printable email decoding**
+- **Graceful shutdown (Ctrl+C handling)**
 - Configurable via environment variables
 - Installs as a systemd service via .deb package
 - Automatically creates `.env` file if not present
 - Stores all files (binary, config, logs) in `~/smtp2telegram/`
+- **Secure file permissions (0600 for .env)**
 - Lightweight and easy to deploy
+
+## What's New in v2.0
+
+- ✅ Complete refactoring to object-oriented architecture
+- ✅ Thread-safe logging with automatic rotation
+- ✅ Retry logic for reliable Telegram delivery
+- ✅ Proper MIME/quoted-printable/Base64 decoding
+- ✅ HTML email support (strips tags)
+- ✅ Multipart email parsing
+- ✅ Graceful shutdown on Ctrl+C
+- ✅ Secure .env file permissions (0600)
+- ✅ Input validation (ports, chat IDs)
+- ✅ Connection testing on startup
+- ✅ All bugs from v1.x fixed
 
 ## Requirements
 
-- C++17 compatible compiler
+- C++17 compatible compiler (g++ 7.0+)
 - Make (for building, if not using .deb)
+- Boost.Asio library
+- libcurl with SSL support
 - Telegram Bot Token
 - Telegram Chat ID
 
@@ -50,6 +72,16 @@ SMTP-2-Telegram is a lightweight C++ service that listens for incoming emails vi
     make deb
     ```
 
+## Architecture (v2.0+)
+
+The project uses a modern object-oriented design with clear separation of concerns:
+
+- **Config** - Configuration loading and validation
+- **Logger** - Thread-safe logging with rotation
+- **TelegramClient** - Telegram API client with retry logic
+- **EmailParser** - MIME parsing and email decoding
+- **SMTPServer** - SMTP protocol handling
+
 ## Configuration
 
 On first run, the service will create a `.env` file in `~/smtp2telegram/` if it does not exist by asking
@@ -76,19 +108,60 @@ LOG_KEEP_DAYS=3
 
 ## Usage
 
-First Run(*** TO CREATE THE .env FILE follow directions***):
+First Run (*** TO CREATE THE .env FILE follow directions***):
 ```bash
 smtp2telegram
 ```
+
+The application will:
+1. Test the Telegram connection on startup
+2. Log all activities to `~/smtp2telegram/smtp_server.log`
+3. Automatically rotate old logs based on `LOG_KEEP_DAYS`
+4. Retry failed Telegram sends up to 3 times
+5. Handle Ctrl+C gracefully for clean shutdown
 
 Start the service (if not already running and have .env file):
 ```bash
 sudo systemctl start smtp2telegram
 ```
 
+Stop the service gracefully:
+```bash
+sudo systemctl stop smtp2telegram
+# or press Ctrl+C if running in foreground
+```
+
 Send an email to the configured SMTP server. The service will forward the email's subject and body to the specified Telegram chat.
 
-Logs are saved to `~/smtp2telegram/smtp2telegram.log`.
+Logs are saved to `~/smtp2telegram/smtp_server.log`.
+
+## Troubleshooting
+
+### Build Issues
+```bash
+# Ensure you have C++17 support
+g++ --version  # Need 7.0 or higher
+
+# Install dependencies
+sudo apt install g++ libboost-all-dev libcurl4-openssl-dev make
+```
+
+### Runtime Issues
+```bash
+# Check logs
+tail -f ~/smtp2telegram/smtp_server.log
+
+# Test Telegram connection
+curl "https://api.telegram.org/bot<YOUR_API_KEY>/getMe"
+
+# Verify .env file
+cat ~/smtp2telegram/.env
+```
+
+### Server won't start
+- Check if port is already in use: `netstat -tuln | grep <YOUR_PORT>`
+- Verify .env file exists and has correct permissions
+- Check systemd logs: `journalctl -u smtp2telegram -f`
 
 ## License
 
