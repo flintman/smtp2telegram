@@ -7,6 +7,7 @@
 #include "../includes/SMTPServer.h"
 #include "../includes/Logger.h"
 #include "../includes/TelegramClient.h"
+#include "../includes/Queue.h"
 #include "../includes/EmailParser.h"
 #include <iostream>
 #include <sstream>
@@ -16,11 +17,12 @@
 using boost::asio::ip::tcp;
 
 SMTPServer::SMTPServer(const std::string& hostname, int port,
-                       std::shared_ptr<TelegramClient> telegram,
-                       std::shared_ptr<Logger> logger,
-                       std::shared_ptr<EmailParser> parser)
-    : hostname_(hostname), port_(port), telegram_(telegram),
-      logger_(logger), parser_(parser), shutdown_requested_(false) {
+                                             std::shared_ptr<TelegramClient> telegram,
+                                             std::shared_ptr<Logger> logger,
+                                             std::shared_ptr<EmailParser> parser,
+                                             std::shared_ptr<Queue> queue)
+        : hostname_(hostname), port_(port), telegram_(telegram),
+            logger_(logger), parser_(parser), queue_(queue), shutdown_requested_(false) {
 }
 
 SMTPServer::~SMTPServer() {
@@ -145,12 +147,24 @@ void SMTPServer::handleConnection(tcp::socket& socket) {
                     std::string telegram_msg = parser_->formatForTelegram(parsed);
 
                     if (!telegram_msg.empty()) {
-                        if (telegram_->sendMessage(telegram_msg)) {
-                            logger_->info("Email forwarded to Telegram");
-                            sendResponse(socket, "250 OK: Message accepted\r\n");
+                        // Enqueue the formatted Telegram message for background delivery.
+                        if (queue_) {
+                            if (queue_->enqueue(telegram_msg)) {
+                                logger_->info("Email enqueued for delivery to Telegram");
+                                sendResponse(socket, "250 OK: Message accepted for delivery\r\n");
+                            } else {
+                                logger_->error("Failed to enqueue message, returning temporary failure");
+                                sendResponse(socket, "451 Temporary failure\r\n");
+                            }
                         } else {
-                            logger_->error("Failed to forward email to Telegram");
-                            sendResponse(socket, "451 Temporary failure\r\n");
+                            // Fallback: try to send synchronously if no queue provided
+                            if (telegram_->sendMessage(telegram_msg)) {
+                                logger_->info("Email forwarded to Telegram (sync fallback)");
+                                sendResponse(socket, "250 OK: Message accepted\r\n");
+                            } else {
+                                logger_->error("Failed to forward email to Telegram (sync fallback)");
+                                sendResponse(socket, "451 Temporary failure\r\n");
+                            }
                         }
                     } else {
                         logger_->warning("Empty email received");

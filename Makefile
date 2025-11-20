@@ -2,7 +2,7 @@ CC=g++
 CFLAGS=-Wall -O2 -std=c++17 -Iincludes
 LIBS=-lboost_system -lcurl -lpthread
 TARGET=smtp2telegram
-SRC=src/smtp2telegram.cpp src/Config.cpp src/Logger.cpp src/TelegramClient.cpp src/EmailParser.cpp src/SMTPServer.cpp
+SRC=src/smtp2telegram.cpp src/Config.cpp src/Logger.cpp src/TelegramClient.cpp src/EmailParser.cpp src/SMTPServer.cpp src/Queue.cpp src/DeliveryWorker.cpp
 BUILDDIR=build
 DEBDIR=$(BUILDDIR)/debian/$(TARGET)
 BINTARGET=$(BUILDDIR)/$(TARGET)
@@ -14,7 +14,7 @@ all: $(BUILDDIR) $(BINTARGET)
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
-$(BINTARGET): $(SRC) includes/smtp2telegram.h includes/Config.h includes/Logger.h includes/TelegramClient.h includes/EmailParser.h includes/SMTPServer.h
+$(BINTARGET): $(SRC) includes/smtp2telegram.h includes/Config.h includes/Logger.h includes/TelegramClient.h includes/EmailParser.h includes/SMTPServer.h includes/Queue.h includes/DeliveryWorker.h
 	$(CC) $(CFLAGS) $(SRC) -o $(BINTARGET) $(LIBS)
 
 clean:

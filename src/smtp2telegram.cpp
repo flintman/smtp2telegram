@@ -10,14 +10,17 @@
 #include "../includes/TelegramClient.h"
 #include "../includes/EmailParser.h"
 #include "../includes/SMTPServer.h"
+#include "../includes/Queue.h"
+#include "../includes/DeliveryWorker.h"
 #include <iostream>
 #include <memory>
 #include <csignal>
 #include <cstdlib>
 
-// Global pointer for signal handler
+// Global pointers for signal handler
 std::shared_ptr<SMTPServer> g_server;
 std::shared_ptr<Logger> g_logger;
+std::shared_ptr<class DeliveryWorker> g_worker;
 
 void signalHandler(int signal) {
     if (g_logger) {
@@ -25,6 +28,9 @@ void signalHandler(int signal) {
     }
     if (g_server) {
         g_server->shutdown();
+    }
+    if (g_worker) {
+        g_worker->stop();
     }
 }
 
@@ -49,23 +55,32 @@ int main() {
             g_logger
         );
 
-        // Test Telegram connection
+        // Test Telegram connection at startup: fail fast if unreachable
         g_logger->info("Testing Telegram connection...");
         if (!telegram->testConnection()) {
-            g_logger->error("Failed to connect to Telegram. Please check your API_KEY and CHAT_ID.");
-            return 1;
+            g_logger->error("Telegram connection test failed at startup. Exiting as requested.");
+            return 2;
         }
 
         // Create email parser
         auto parser = std::make_shared<EmailParser>();
 
-        // Create SMTP server
+        // Create persistent queue directory under config dir
+        std::string queue_dir = config.getConfigDir() + "/queue";
+        auto queue = std::make_shared<class Queue>(queue_dir, g_logger);
+
+        // Create delivery worker to flush queued messages
+        g_worker = std::make_shared<class DeliveryWorker>(queue, telegram, g_logger, 5);
+        g_worker->start();
+
+        // Create SMTP server (it will enqueue messages)
         g_server = std::make_shared<SMTPServer>(
             config.getSmtpHostname(),
             config.getSmtpPort(),
             telegram,
             g_logger,
-            parser
+            parser,
+            queue
         );
 
         // Set up signal handlers for graceful shutdown
@@ -76,6 +91,11 @@ int main() {
 
         // Run the server (blocking)
         g_server->run();
+
+        // Stop worker after server stops
+        if (g_worker) {
+            g_worker->stop();
+        }
 
         g_logger->info("=== SMTP2Telegram Stopped ===");
 

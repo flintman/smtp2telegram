@@ -15,13 +15,15 @@
 class Logger;
 class TelegramClient;
 class EmailParser;
+class Queue;
 
 class SMTPServer {
 public:
     SMTPServer(const std::string& hostname, int port,
                std::shared_ptr<TelegramClient> telegram,
                std::shared_ptr<Logger> logger,
-               std::shared_ptr<EmailParser> parser);
+               std::shared_ptr<EmailParser> parser,
+               std::shared_ptr<Queue> queue);
     ~SMTPServer();
 
     // Start the server (blocking)
@@ -39,6 +41,7 @@ private:
     std::shared_ptr<TelegramClient> telegram_;
     std::shared_ptr<Logger> logger_;
     std::shared_ptr<EmailParser> parser_;
+    std::shared_ptr<Queue> queue_;
     std::atomic<bool> shutdown_requested_;
 
     void handleConnection(boost::asio::ip::tcp::socket& socket);
