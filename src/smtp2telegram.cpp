@@ -55,11 +55,10 @@ int main() {
             g_logger
         );
 
-        // Test Telegram connection at startup: fail fast if unreachable
+        // Test Telegram connection at startup (warning only, will retry via DeliveryWorker)
         g_logger->info("Testing Telegram connection...");
         if (!telegram->testConnection()) {
-            g_logger->error("Telegram connection test failed at startup. Exiting as requested.");
-            return 2;
+            g_logger->warning("Telegram connection test failed at startup. Server will queue messages and retry when connectivity is restored.");
         }
 
         // Create email parser
