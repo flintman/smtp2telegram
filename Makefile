@@ -6,7 +6,7 @@ SRC=src/smtp2telegram.cpp src/Config.cpp src/Logger.cpp src/TelegramClient.cpp s
 BUILDDIR=build
 DEBDIR=$(BUILDDIR)/debian/$(TARGET)
 BINTARGET=$(BUILDDIR)/$(TARGET)
-VERSION=2.0.1
+VERSION=2.0.2
 ARCH=$(shell dpkg-architecture -qDEB_BUILD_ARCH)
 
 all: $(BUILDDIR) $(BINTARGET)
